@@ -1,0 +1,12 @@
+# Конфиг Detekt для линтинга Kotlin (подключить плагин в root build.gradle.kts при необходимости)
+build:
+  maxIssues: 0
+  excludeCorrectable: false
+config:
+  validation: true
+  warnings: false
+complexity:
+  LongMethod:
+    threshold: 60
+  LongParameterList:
+    threshold: 6
