@@ -9,23 +9,26 @@ import javax.inject.Singleton
 
 /**
  * Безопасное хранение секретов и настроек (токены, ключи, пороги, blacklist).
- * Секреты — в EncryptedSharedPreferences; остальное можно хранить там же.
+ * Пытается использовать EncryptedSharedPreferences; при ошибке (эмулятор без lock screen, Keystore) — обычные SharedPreferences.
  */
 @Singleton
 class SecureSettings @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
-    private val masterKey = MasterKey.Builder(context)
-        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-        .build()
-
-    private val prefs = EncryptedSharedPreferences.create(
-        context,
-        "rwbot_secure_prefs",
-        masterKey,
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-    )
+    private val prefs = try {
+        val masterKey = MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        EncryptedSharedPreferences.create(
+            context,
+            "rwbot_secure_prefs",
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    } catch (e: Exception) {
+        context.getSharedPreferences("rwbot_secure_prefs", Context.MODE_PRIVATE)
+    }
 
     // Секреты (не логировать)
     var wbApiToken: String?

@@ -35,22 +35,27 @@ class ReviewRepositoryImpl @Inject constructor(
             var skip = 0
             val take = 50
             var total = 0
+            val receivedIds = mutableListOf<String>()
             do {
                 val response = wbApi.getFeedbacks(take = take, skip = skip)
                 if (!response.isSuccessful) {
                     val code = response.code()
+                    val bodyMsg = response.errorBody()?.string()?.take(200)?.let { " — $it" } ?: ""
                     return Result.Error(
                         when (code) {
+                            400 -> "Неверный запрос WB (400)$bodyMsg"
                             401 -> "Проверьте токен WB в настройках"
                             429 -> "Слишком много запросов. Подождите."
-                            else -> "Ошибка WB API: $code"
+                            else -> "Ошибка WB API: $code$bodyMsg"
                         },
                         HttpException(response)
                     )
                 }
-                val list = response.body() ?: emptyList()
-                val entities = list.mapNotNull { dto ->
-                    dto.toEntity { id -> reviewDao.getById(id) }
+                val list = response.body()?.data?.feedbacks ?: emptyList()
+                val entities = mutableListOf<ReviewEntity>()
+                for (dto in list) {
+                    dto.id?.let { receivedIds.add(it) }
+                    dto.toEntity { id -> reviewDao.getById(id) }?.let { entities.add(it) }
                 }
                 if (entities.isNotEmpty()) {
                     reviewDao.insertAll(entities)
@@ -58,6 +63,16 @@ class ReviewRepositoryImpl @Inject constructor(
                 }
                 skip += take
             } while (list.size == take)
+            // Отзывы, которых нет в списке неотвеченных с WB (например обработаны с другого устройства),
+            // помечаем как ANSWERED, чтобы они исчезали из списка необработанных.
+            val receivedSet = receivedIds.toSet()
+            val toMarkAnswered = reviewDao.getIdsNewOrOnModeration().filter { it !in receivedSet }
+            if (toMarkAnswered.isNotEmpty()) {
+                val now = System.currentTimeMillis()
+                toMarkAnswered.chunked(500).forEach { chunk ->
+                    reviewDao.markAsAnsweredByIds(chunk, now)
+                }
+            }
             Result.Success(total)
         } catch (e: IOException) {
             Result.Error("Нет сети или таймаут", e)
@@ -73,11 +88,13 @@ class ReviewRepositoryImpl @Inject constructor(
             val response = wbApi.sendAnswer(com.rwbot.android.data.remote.wb.WbAnswerRequest(feedbackId, text))
             if (!response.isSuccessful) {
                 val code = response.code()
+                val bodyMsg = response.errorBody()?.string()?.take(200)?.let { " — $it" } ?: ""
                 return Result.Error(
                     when (code) {
+                        400 -> "Неверный запрос WB (400)$bodyMsg"
                         401 -> "Проверьте токен WB в настройках"
                         429 -> "Слишком много запросов"
-                        else -> "Ошибка отправки: $code"
+                        else -> "Ошибка отправки: $code$bodyMsg"
                     },
                     HttpException(response)
                 )
@@ -101,14 +118,19 @@ class ReviewRepositoryImpl @Inject constructor(
     override suspend fun getModerationCount(): Int = reviewDao.countByStatus(ReviewStatus.ON_MODERATION)
 }
 
-private fun WbFeedbackDto.toEntity(getExisting: (String) -> ReviewEntity?): ReviewEntity? {
+private suspend fun WbFeedbackDto.toEntity(getExisting: suspend (String) -> ReviewEntity?): ReviewEntity? {
     val id = id ?: return null
     val existing = getExisting(id)
+    val rawSupplier = productDetails?.vendorCode
+        ?: productDetails?.supplierArticle
+        ?: existing?.supplierArticle
+    val supplierArticle = rawSupplier?.takeIf { it.isNotBlank() }
     return ReviewEntity(
         id = id,
         text = text ?: "",
         rating = productValuation ?: 0,
         productArticle = nmId?.toString() ?: productDetails?.nmId?.toString() ?: "",
+        supplierArticle = supplierArticle,
         authorName = userName,
         createdDate = createdDate,
         status = existing?.status ?: ReviewStatus.NEW,

@@ -3,6 +3,7 @@ package com.rwbot.android.di
 import android.content.Context
 import androidx.room.Room
 import com.rwbot.android.data.local.AppDatabase
+import com.rwbot.android.data.local.MIGRATION_1_2
 import com.rwbot.android.data.local.dao.ReviewDao
 import dagger.Module
 import dagger.Provides
@@ -22,7 +23,7 @@ object DatabaseModule {
             context,
             AppDatabase::class.java,
             "rwbot.db"
-        ).build()
+        ).addMigrations(MIGRATION_1_2).build()
     }
 
     @Provides

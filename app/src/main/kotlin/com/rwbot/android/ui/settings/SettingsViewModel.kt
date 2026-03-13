@@ -34,15 +34,19 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun load() {
-        _state.value = SettingsUiState(
-            wbToken = secureSettings.wbApiToken ?: "",
-            yandexApiKey = secureSettings.yandexApiKey ?: "",
-            yandexFolderId = secureSettings.yandexFolderId ?: "",
-            complexityThreshold = secureSettings.complexityThreshold,
-            confidenceThreshold = secureSettings.confidenceThreshold,
-            minRating = secureSettings.minRatingForAutoResponse,
-            blacklistText = secureSettings.blacklistWords.joinToString("\n")
-        )
+        try {
+            _state.value = SettingsUiState(
+                wbToken = secureSettings.wbApiToken ?: "",
+                yandexApiKey = secureSettings.yandexApiKey ?: "",
+                yandexFolderId = secureSettings.yandexFolderId ?: "",
+                complexityThreshold = secureSettings.complexityThreshold,
+                confidenceThreshold = secureSettings.confidenceThreshold,
+                minRating = secureSettings.minRatingForAutoResponse,
+                blacklistText = secureSettings.blacklistWords.joinToString("\n")
+            )
+        } catch (_: Exception) {
+            _state.value = SettingsUiState()
+        }
     }
 
     fun updateWbToken(s: String) { _state.value = _state.value.copy(wbToken = s) }

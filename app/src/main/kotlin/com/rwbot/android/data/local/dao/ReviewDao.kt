@@ -35,4 +35,14 @@ interface ReviewDao {
 
     @Query("SELECT COUNT(*) FROM reviews WHERE status = :status AND updatedAt >= :since")
     suspend fun countByStatusSince(status: ReviewStatus, since: Long): Int
+
+    /** Список id отзывов со статусом NEW или ON_MODERATION (для синхронизации с WB). */
+    @Query("SELECT id FROM reviews WHERE status IN ('NEW','ON_MODERATION')")
+    suspend fun getIdsNewOrOnModeration(): List<String>
+
+    /**
+     * Пометить указанные отзывы как ANSWERED (обработаны на WB, в т.ч. с другого устройства).
+     */
+    @Query("UPDATE reviews SET status = 'ANSWERED', updatedAt = :updatedAt WHERE id IN (:ids)")
+    suspend fun markAsAnsweredByIds(ids: List<String>, updatedAt: Long)
 }

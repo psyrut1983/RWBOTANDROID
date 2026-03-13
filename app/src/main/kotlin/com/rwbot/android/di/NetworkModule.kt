@@ -20,28 +20,33 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    private const val TIMEOUT = 30L
+    // Таймаут берём из BuildConfig, он задаётся в Gradle через NETWORK_TIMEOUT_SECONDS
+    private val TIMEOUT_SECONDS: Long = BuildConfig.NETWORK_TIMEOUT_SECONDS.toLong()
 
     @Provides
     @Singleton
     @Named("wb")
     fun provideWbOkHttp(secureSettings: SecureSettings): OkHttpClient {
+        // В релизе не логируем тело/заголовки, чтобы не выводить токены
         val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = if (BuildConfig.BUILD_TYPE == "debug") HttpLoggingInterceptor.Level.BODY else HttpLoggingInterceptor.Level.NONE
         }
         return OkHttpClient.Builder()
             .addInterceptor { chain ->
                 val token = secureSettings.wbApiToken
                 val request = chain.request().newBuilder()
+                // WB API отзывов требует заголовок Authorization (ответ 401: "empty Authorization header").
+                // JWT-токен передаём как "Bearer <token>".
                 if (!token.isNullOrBlank()) {
-                    request.addHeader("Authorization", token)
+                    val authValue = if (token.trim().startsWith("Bearer ")) token.trim() else "Bearer ${token.trim()}"
+                    request.addHeader("Authorization", authValue)
                 }
                 chain.proceed(request.build())
             }
             .addInterceptor(logging)
-            .connectTimeout(TIMEOUT, TimeUnit.SECONDS)
-            .readTimeout(TIMEOUT, TimeUnit.SECONDS)
-            .writeTimeout(TIMEOUT, TimeUnit.SECONDS)
+            .connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .writeTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .build()
     }
 
@@ -61,7 +66,7 @@ object NetworkModule {
     @Named("yandex")
     fun provideYandexOkHttp(secureSettings: SecureSettings): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = if (BuildConfig.BUILD_TYPE == "debug") HttpLoggingInterceptor.Level.BODY else HttpLoggingInterceptor.Level.NONE
         }
         return OkHttpClient.Builder()
             .addInterceptor { chain ->
@@ -71,9 +76,9 @@ object NetworkModule {
                 chain.proceed(request.build())
             }
             .addInterceptor(logging)
-            .connectTimeout(TIMEOUT, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
-            .writeTimeout(TIMEOUT, TimeUnit.SECONDS)
+            .connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .writeTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .build()
     }
 

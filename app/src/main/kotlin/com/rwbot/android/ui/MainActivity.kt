@@ -12,6 +12,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.padding
@@ -35,6 +36,7 @@ import com.rwbot.android.ui.stats.StatsViewModel
 import com.rwbot.android.ui.theme.RWBOTAndroidTheme
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.rwbot.android.ui.moderation.ModerationScreen
 
 @AndroidEntryPoint
@@ -77,6 +79,7 @@ fun MainNav() {
                                 restoreState = true
                             }
                         },
+                        icon = {},
                         label = { Text(label) }
                     )
                 }
@@ -89,6 +92,7 @@ fun MainNav() {
             modifier = Modifier.fillMaxSize().padding(padding)
         ) {
             composable(NavRoutes.REVIEWS) {
+                LaunchedEffect(Unit) { reviewsViewModel.setFilter(null) }
                 ReviewsScreen(
                     viewModel = reviewsViewModel,
                     onReviewClick = { navController.navigate(NavRoutes.reviewDetail(it)) }
@@ -101,18 +105,18 @@ fun MainNav() {
                 )
             }
             composable(NavRoutes.STATS) {
-                val vm: StatsViewModel = viewModel()
+                val vm: StatsViewModel = hiltViewModel()
                 StatsScreen(viewModel = vm)
             }
             composable(NavRoutes.SETTINGS) {
-                val vm: SettingsViewModel = viewModel()
+                val vm: SettingsViewModel = hiltViewModel()
                 SettingsScreen(viewModel = vm)
             }
             composable(
                 NavRoutes.REVIEW_DETAIL,
                 arguments = listOf(navArgument("reviewId") { type = androidx.navigation.NavType.StringType })
             ) {
-                val vm: ReviewDetailViewModel = viewModel()
+                val vm: ReviewDetailViewModel = hiltViewModel()
                 ReviewDetailScreen(viewModel = vm)
             }
         }

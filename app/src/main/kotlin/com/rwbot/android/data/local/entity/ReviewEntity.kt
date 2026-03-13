@@ -24,7 +24,10 @@ data class ReviewEntity(
     val id: String,
     val text: String,
     val rating: Int,
+    /** Артикул Wildberries (nmId) */
     val productArticle: String,
+    /** Артикул продавца (для подбора фото по имени файла в product_images) */
+    val supplierArticle: String?,
     val authorName: String?,
     val createdDate: String?,
     /** Локальный статус обработки */

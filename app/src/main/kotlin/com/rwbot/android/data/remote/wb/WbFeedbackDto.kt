@@ -19,10 +19,25 @@ data class WbFeedbackDto(
 
 data class ProductDetailsDto(
     @SerializedName("nmId") val nmId: Long?,
-    @SerializedName("productName") val productName: String?
+    @SerializedName("productName") val productName: String?,
+    /** Артикул продавца (название файла фото в product_images) */
+    @SerializedName("vendorCode") val vendorCode: String? = null,
+    @SerializedName("supplierArticle") val supplierArticle: String? = null
 )
 
 data class AnswerDto(
     @SerializedName("text") val text: String?,
     @SerializedName("state") val state: String?
+)
+
+/**
+ * Обёртка ответа GET /api/v1/feedbacks.
+ * WB возвращает { "data": { "feedbacks": [ ... ] } }, а не массив напрямую.
+ */
+data class WbFeedbacksResponseDto(
+    @SerializedName("data") val data: WbFeedbacksDataDto?
+)
+
+data class WbFeedbacksDataDto(
+    @SerializedName("feedbacks") val feedbacks: List<WbFeedbackDto>?
 )

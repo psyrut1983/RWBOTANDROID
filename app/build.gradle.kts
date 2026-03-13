@@ -42,8 +42,22 @@ android {
         buildConfig = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.5"
+        kotlinCompilerExtensionVersion = "1.5.14"
     }
+}
+
+// Копирование фото товаров из res/product_images в assets для загрузки по артикулу продавца
+tasks.register<Copy>("copyProductImagesToAssets") {
+    from(layout.projectDirectory.dir("src/main/res/product_images"))
+    into(layout.projectDirectory.dir("src/main/assets/product_images"))
+    include("**/*.png", "**/*.jpg", "**/*.jpeg")
+}
+// preBuild есть у Android-проекта и выполняется до сборки — копируем assets до merge
+tasks.named("preBuild").configure { dependsOn("copyProductImagesToAssets") }
+
+// Убирает предупреждение о динамической загрузке Java agent (MockK/ByteBuddy)
+tasks.withType<Test>().configureEach {
+    jvmArgs("-XX:+EnableDynamicAgentLoading")
 }
 
 dependencies {
@@ -88,4 +102,10 @@ dependencies {
 
     // Unit tests
     testImplementation("junit:junit:4.13.2")
+    testImplementation("com.squareup.okhttp3:okhttp:4.12.0")
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+    testImplementation("io.mockk:mockk:1.13.9")
+    testImplementation("androidx.arch.core:core-testing:2.2.0")
+    testImplementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2")
 }
