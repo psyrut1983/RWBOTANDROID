@@ -10,6 +10,7 @@ import com.rwbot.android.domain.classification.ReviewClassifier
 import com.rwbot.android.domain.decision.Decision
 import com.rwbot.android.domain.decision.DecisionEngine
 import com.rwbot.android.domain.decision.DecisionSettings
+import com.rwbot.android.domain.rag.RagRetriever
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -20,9 +21,12 @@ sealed class PipelineResult {
     data class Error(val message: String) : PipelineResult()
 }
 
+/** Сколько похожих отзывов подставлять в контекст RAG. */
+private const val RAG_LIMIT = 5
+
 /**
- * Пайплайн обработки одного отзыва: классификация → генерация ответа (Yandex GPT) → решение → автоотправка или очередь модерации.
- * Все вызовы к API и Room — через репозитории.
+ * Пайплайн обработки одного отзыва: классификация → RAG (поиск похожих) → генерация ответа (Yandex GPT) → решение → автоотправка или очередь модерации.
+ * После успешной обработки отзыв добавляется в архив RAG.
  */
 @Singleton
 class ReviewPipeline @Inject constructor(
@@ -30,7 +34,8 @@ class ReviewPipeline @Inject constructor(
     private val yandexRepository: YandexRepository,
     private val secureSettings: SecureSettings,
     private val classifier: ReviewClassifier,
-    private val decisionEngine: DecisionEngine
+    private val decisionEngine: DecisionEngine,
+    private val ragRetriever: RagRetriever
 ) {
 
     suspend fun processReview(review: ReviewEntity): PipelineResult {
@@ -47,7 +52,9 @@ class ReviewPipeline @Inject constructor(
             rating = review.rating,
             blacklistWords = secureSettings.blacklistWords
         )
-        val generateResult = yandexRepository.generateResponse(review.text)
+        // RAG: поиск похожих отзывов для контекста (при пустом архиве вернётся emptyList)
+        val ragContext = ragRetriever.findSimilar(review.text, RAG_LIMIT)
+        val generateResult = yandexRepository.generateResponse(review.text, ragContext = ragContext)
         val responseText = when (generateResult) {
             is Result.Success -> generateResult.data
             is Result.Error -> return PipelineResult.Error(generateResult.message)
@@ -70,6 +77,7 @@ class ReviewPipeline @Inject constructor(
                 when (sendResult) {
                     is Result.Success -> {
                         reviewRepository.updateReview(updated.copy(status = ReviewStatus.ANSWERED))
+                        ragRetriever.addToArchive(review.id, review.text, responseText)
                         PipelineResult.AutoSent(updated)
                     }
                     is Result.Error -> PipelineResult.Error(sendResult.message)
@@ -77,6 +85,7 @@ class ReviewPipeline @Inject constructor(
             }
             Decision.MODERATE -> {
                 reviewRepository.updateReview(updated)
+                // В архив RAG добавляем только отправленные ответы (при одобрении в ReviewDetailViewModel)
                 PipelineResult.OnModeration(updated)
             }
         }

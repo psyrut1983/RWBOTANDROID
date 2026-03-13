@@ -33,3 +33,22 @@ data class AlternativeDto(
     @SerializedName("message") val message: MessageDto?,
     @SerializedName("status") val status: String?
 )
+
+// --- Embeddings API (RAG) ---
+
+/** Запрос к Yandex Embeddings API (textEmbedding). */
+data class YandexEmbeddingRequest(
+    @SerializedName("modelUri") val modelUri: String,
+    @SerializedName("text") val text: String
+)
+
+/** Ответ Yandex Embeddings API. Вектор может быть в result.embedding или в embedding. */
+data class YandexEmbeddingResponse(
+    @SerializedName("result") val result: EmbeddingResultDto? = null,
+    @SerializedName("embedding") val embedding: List<Double>? = null
+)
+
+data class EmbeddingResultDto(
+    @SerializedName("embedding") val embedding: List<Double>? = null,
+    @SerializedName("numTokens") val numTokens: Int? = null
+)

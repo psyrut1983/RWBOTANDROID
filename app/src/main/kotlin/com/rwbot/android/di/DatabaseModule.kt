@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Room
 import com.rwbot.android.data.local.AppDatabase
 import com.rwbot.android.data.local.MIGRATION_1_2
+import com.rwbot.android.data.local.MIGRATION_2_3
+import com.rwbot.android.data.local.dao.ReviewArchiveDao
 import com.rwbot.android.data.local.dao.ReviewDao
 import dagger.Module
 import dagger.Provides
@@ -23,10 +25,14 @@ object DatabaseModule {
             context,
             AppDatabase::class.java,
             "rwbot.db"
-        ).addMigrations(MIGRATION_1_2).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
     }
 
     @Provides
     @Singleton
     fun provideReviewDao(db: AppDatabase): ReviewDao = db.reviewDao()
+
+    @Provides
+    @Singleton
+    fun provideReviewArchiveDao(db: AppDatabase): ReviewArchiveDao = db.reviewArchiveDao()
 }

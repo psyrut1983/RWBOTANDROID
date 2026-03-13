@@ -79,7 +79,7 @@
 | Локальная БД        | **Room** — отзывы, очередь модерации, статистика; архив для RAG — со второй версии |
 | Настройки и секреты | **DataStore** (Encrypted для токенов/ключей); пороги и blacklist — DataStore или Room |
 | Классификация (v1) | **Правила на Kotlin** (ключевые слова, blacklist, сложность по рейтингу и длине текста) |
-| RAG                 | Не в MVP; во второй итерации — Room/файлы + Yandex Embeddings или локальная модель |
+| RAG                 | **Реализован:** Room (таблица `review_archive`), Yandex Embeddings API, поиск по косинусному сходству, контекст в промпт GPT |
 | DI                  | **Hilt** |
 | Асинхронность       | **Kotlin Coroutines + Flow** |
 | Навигация           | **Navigation Component** |

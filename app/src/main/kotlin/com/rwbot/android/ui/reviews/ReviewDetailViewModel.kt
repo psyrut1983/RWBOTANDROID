@@ -9,6 +9,7 @@ import com.rwbot.android.data.repository.Result
 import com.rwbot.android.data.repository.ReviewRepository
 import com.rwbot.android.domain.pipeline.PipelineResult
 import com.rwbot.android.domain.pipeline.ReviewPipeline
+import com.rwbot.android.domain.rag.RagRetriever
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,7 +27,8 @@ data class ReviewDetailUiState(
 class ReviewDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val reviewRepository: ReviewRepository,
-    private val reviewPipeline: ReviewPipeline
+    private val reviewPipeline: ReviewPipeline,
+    private val ragRetriever: RagRetriever
 ) : ViewModel() {
 
     private val reviewId: String? = savedStateHandle.get<String>("reviewId")
@@ -65,6 +67,8 @@ class ReviewDetailViewModel @Inject constructor(
             when (val r = reviewRepository.sendAnswerToWildberries(review.id, text)) {
                 is Result.Success -> {
                     reviewRepository.updateReview(review.copy(status = ReviewStatus.ANSWERED, updatedAt = System.currentTimeMillis()))
+                    // Обновить архив RAG финальным отправленным ответом (если пользователь редактировал)
+                    ragRetriever.addToArchive(review.id, review.text, text)
                     _state.value = _state.value.copy(review = review.copy(status = ReviewStatus.ANSWERED), message = "Отправлено", processing = false)
                 }
                 is Result.Error -> _state.value = _state.value.copy(message = r.message, processing = false)
