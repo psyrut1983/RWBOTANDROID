@@ -14,6 +14,8 @@ data class ReviewArchiveEntity(
     val id: String,
     /** Текст отзыва. */
     val reviewText: String,
+    /** Оценка (1..5). 0 — если неизвестно (например, старые записи до миграции). */
+    val rating: Int,
     /** Сгенерированный ответ (для контекста в промпте GPT). */
     val responseText: String?,
     /** Вектор эмбеддинга (хранится как BLOB через TypeConverter). Размерность задаётся моделью Yandex. */
@@ -27,6 +29,7 @@ data class ReviewArchiveEntity(
         other as ReviewArchiveEntity
         if (id != other.id) return false
         if (reviewText != other.reviewText) return false
+        if (rating != other.rating) return false
         if (responseText != other.responseText) return false
         if (embedding != null) {
             if (other.embedding == null) return false
@@ -39,6 +42,7 @@ data class ReviewArchiveEntity(
     override fun hashCode(): Int {
         var result = id.hashCode()
         result = 31 * result + reviewText.hashCode()
+        result = 31 * result + rating
         result = 31 * result + (responseText?.hashCode() ?: 0)
         result = 31 * result + (embedding?.contentHashCode() ?: 0)
         result = 31 * result + createdAt.hashCode()

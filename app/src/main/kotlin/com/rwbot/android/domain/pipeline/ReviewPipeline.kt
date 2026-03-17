@@ -51,9 +51,25 @@ class ReviewPipeline @Inject constructor(
             rating = review.rating,
             blacklistWords = secureSettings.blacklistWords
         )
-        // RAG: поиск похожих отзывов для контекста (при пустом архиве вернётся emptyList)
-        val ragContext = ragRetriever.findSimilar(review.text, RAG_LIMIT)
-        val generateResult = yandexRepository.generateResponse(review.text, ragContext = ragContext)
+        // RAG: если текста нет, подбираем примеры ответов по рейтингу.
+        // Иначе — обычный поиск похожих по эмбеддингам.
+        val hasText = review.text.isNotBlank()
+        val ragContext = if (hasText) {
+            ragRetriever.findSimilar(review.text, RAG_LIMIT)
+        } else {
+            ragRetriever.findByRating(review.rating, RAG_LIMIT)
+        }
+
+        // Если текста нет, формируем "псевдо-отзыв" для генерации: он зависит от оценки.
+        // Это важно, чтобы модель понимала, какой тон выбрать (позитив/нейтрал/негатив).
+        val promptReviewText = if (hasText) {
+            review.text
+        } else {
+            "Отзыв без текста. Оценка: ${review.rating}/5. " +
+                "Сформируй короткий вежливый ответ покупателю, тон и содержание зависят от оценки."
+        }
+
+        val generateResult = yandexRepository.generateResponse(promptReviewText, ragContext = ragContext)
         val responseText = when (generateResult) {
             is Result.Success -> generateResult.data
             is Result.Error -> return PipelineResult.Error(generateResult.message)

@@ -69,6 +69,7 @@ class RagRetrieverImplTest {
             ReviewArchiveEntity(
                 id = "no_emb",
                 reviewText = "A",
+                rating = 5,
                 responseText = "RA",
                 embedding = null,
                 createdAt = 1L
@@ -76,6 +77,7 @@ class RagRetrieverImplTest {
             ReviewArchiveEntity(
                 id = "bad_dim",
                 reviewText = "B",
+                rating = 5,
                 responseText = "RB",
                 embedding = floatArrayOf(1f, 2f, 3f),
                 createdAt = 2L
@@ -85,6 +87,7 @@ class RagRetrieverImplTest {
             ReviewArchiveEntity(
                 id = "best",
                 reviewText = "BEST_REVIEW",
+                rating = 5,
                 responseText = "BEST_RESPONSE",
                 embedding = floatArrayOf(1f, 0f),
                 createdAt = 3L
@@ -94,6 +97,7 @@ class RagRetrieverImplTest {
             ReviewArchiveEntity(
                 id = "worst",
                 reviewText = "WORST_REVIEW",
+                rating = 5,
                 responseText = "WORST_RESPONSE",
                 embedding = floatArrayOf(0f, 1f),
                 createdAt = 4L
@@ -110,27 +114,27 @@ class RagRetrieverImplTest {
     }
 
     @Test
-    fun `addToArchive - blank reviewText does nothing`() = runTest {
+    fun `addToArchive - blank reviewText inserts without embedding (keeps rating for later)`() = runTest {
         val dao = mockk<ReviewArchiveDao>(relaxed = true)
         val yandex = mockk<YandexRepository>(relaxed = true)
         val rag = RagRetrieverImpl(dao, yandex)
 
-        rag.addToArchive("id", "   ", "resp")
+        rag.addToArchive("id", "   ", rating = 4, responseText = "resp")
 
         coVerify(exactly = 0) { yandex.embed(any()) }
-        coVerify(exactly = 0) { dao.insert(any()) }
+        coVerify(exactly = 1) { dao.insert(any()) }
     }
 
     @Test
-    fun `addToArchive - embed error does not insert`() = runTest {
+    fun `addToArchive - embed error inserts without embedding`() = runTest {
         val dao = mockk<ReviewArchiveDao>(relaxed = true)
         val yandex = mockk<YandexRepository>()
         coEvery { yandex.embed(any()) } returns Result.Error("fail")
         val rag = RagRetrieverImpl(dao, yandex)
 
-        rag.addToArchive("id1", "text", "resp")
+        rag.addToArchive("id1", "text", rating = 5, responseText = "resp")
 
-        coVerify(exactly = 0) { dao.insert(any()) }
+        coVerify(exactly = 1) { dao.insert(any()) }
     }
 
     @Test
@@ -141,13 +145,14 @@ class RagRetrieverImplTest {
         coEvery { yandex.embed("hello") } returns Result.Success(embedding)
 
         val rag = RagRetrieverImpl(dao, yandex)
-        rag.addToArchive("rid", "hello", "world")
+        rag.addToArchive("rid", "hello", rating = 3, responseText = "world")
 
         val captured = slot<ReviewArchiveEntity>()
         coVerify(exactly = 1) { dao.insert(capture(captured)) }
 
         assertEquals("rid", captured.captured.id)
         assertEquals("hello", captured.captured.reviewText)
+        assertEquals(3, captured.captured.rating)
         assertEquals("world", captured.captured.responseText)
         assertTrue(captured.captured.embedding!!.contentEquals(embedding))
         assertTrue(

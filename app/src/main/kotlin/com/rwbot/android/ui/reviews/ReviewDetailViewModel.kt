@@ -103,7 +103,7 @@ class ReviewDetailViewModel @Inject constructor(
                 is Result.Success -> {
                     reviewRepository.updateReview(review.copy(status = ReviewStatus.ANSWERED, updatedAt = System.currentTimeMillis()))
                     // Обновить архив RAG финальным отправленным ответом (если пользователь редактировал)
-                    ragRetriever.addToArchive(review.id, review.text, text)
+                    ragRetriever.addToArchive(review.id, review.text, review.rating, text)
                     _state.value = _state.value.copy(
                         review = review.copy(status = ReviewStatus.ANSWERED, generatedResponse = text),
                         message = "Отправлено",
