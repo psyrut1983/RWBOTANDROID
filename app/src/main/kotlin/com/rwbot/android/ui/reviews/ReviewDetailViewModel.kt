@@ -20,7 +20,11 @@ import javax.inject.Inject
 data class ReviewDetailUiState(
     val review: ReviewEntity? = null,
     val message: String? = null,
-    val processing: Boolean = false
+    val processing: Boolean = false,
+    // Черновик ответа, который пользователь может отредактировать перед отправкой
+    val draftResponseText: String = "",
+    // Показывать ли окно предпросмотра/редактирования
+    val isApprovalDialogVisible: Boolean = false
 )
 
 @HiltViewModel
@@ -52,16 +56,47 @@ class ReviewDetailViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(processing = true, message = null)
             when (val result = reviewPipeline.processReview(review)) {
-                is PipelineResult.AutoSent -> _state.value = _state.value.copy(review = result.review, message = "Ответ отправлен в WB", processing = false)
-                is PipelineResult.OnModeration -> _state.value = _state.value.copy(review = result.review, message = "Отзыв на модерации", processing = false)
+                is PipelineResult.OnModeration -> _state.value = _state.value.copy(
+                    review = result.review,
+                    message = "Проверьте и отредактируйте ответ перед отправкой",
+                    processing = false,
+                    draftResponseText = result.review.generatedResponse.orEmpty(),
+                    isApprovalDialogVisible = true
+                )
                 is PipelineResult.Error -> _state.value = _state.value.copy(message = result.message, processing = false)
             }
         }
     }
 
+    /**
+     * Раньше эта кнопка сразу отправляла ответ.
+     * Теперь она открывает окно одобрения, чтобы пользователь мог отредактировать текст.
+     */
     fun approve() {
         val review = _state.value.review ?: return
         val text = review.generatedResponse ?: return
+        _state.value = _state.value.copy(
+            draftResponseText = text,
+            isApprovalDialogVisible = true,
+            message = null
+        )
+    }
+
+    fun onDraftResponseChanged(newText: String) {
+        _state.value = _state.value.copy(draftResponseText = newText)
+    }
+
+    fun dismissApprovalDialog() {
+        _state.value = _state.value.copy(isApprovalDialogVisible = false)
+    }
+
+    fun sendApprovedAnswer() {
+        val review = _state.value.review ?: return
+        val text = _state.value.draftResponseText.trim()
+        if (text.isBlank()) {
+            _state.value = _state.value.copy(message = "Текст ответа пустой")
+            return
+        }
         viewModelScope.launch {
             _state.value = _state.value.copy(processing = true, message = null)
             when (val r = reviewRepository.sendAnswerToWildberries(review.id, text)) {
@@ -69,7 +104,12 @@ class ReviewDetailViewModel @Inject constructor(
                     reviewRepository.updateReview(review.copy(status = ReviewStatus.ANSWERED, updatedAt = System.currentTimeMillis()))
                     // Обновить архив RAG финальным отправленным ответом (если пользователь редактировал)
                     ragRetriever.addToArchive(review.id, review.text, text)
-                    _state.value = _state.value.copy(review = review.copy(status = ReviewStatus.ANSWERED), message = "Отправлено", processing = false)
+                    _state.value = _state.value.copy(
+                        review = review.copy(status = ReviewStatus.ANSWERED, generatedResponse = text),
+                        message = "Отправлено",
+                        processing = false,
+                        isApprovalDialogVisible = false
+                    )
                 }
                 is Result.Error -> _state.value = _state.value.copy(message = r.message, processing = false)
             }
