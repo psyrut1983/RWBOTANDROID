@@ -24,6 +24,7 @@ internal val MIGRATION_2_3 = object : Migration(2, 3) {
             CREATE TABLE IF NOT EXISTS review_archive (
                 id TEXT PRIMARY KEY NOT NULL,
                 reviewText TEXT NOT NULL,
+                rating INTEGER NOT NULL DEFAULT 0,
                 responseText TEXT,
                 embedding BLOB,
                 createdAt INTEGER NOT NULL
@@ -32,9 +33,16 @@ internal val MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
+/** Миграция: добавляем оценку (rating) в архив RAG. */
+internal val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE review_archive ADD COLUMN rating INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
 @Database(
     entities = [ReviewEntity::class, ReviewArchiveEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

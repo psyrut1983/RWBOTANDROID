@@ -21,7 +21,13 @@ interface RagRetriever {
     suspend fun findSimilar(reviewText: String, limit: Int = 5): List<RagContextItem>
 
     /**
+     * Найти примеры ответов из архива по той же оценке.
+     * Используется, когда у отзыва нет текста (есть только рейтинг).
+     */
+    suspend fun findByRating(rating: Int, limit: Int = 5): List<RagContextItem>
+
+    /**
      * Добавить отзыв и ответ в архив (с эмбеддингом) для будущего RAG.
      */
-    suspend fun addToArchive(reviewId: String, reviewText: String, responseText: String?)
+    suspend fun addToArchive(reviewId: String, reviewText: String, rating: Int, responseText: String?)
 }

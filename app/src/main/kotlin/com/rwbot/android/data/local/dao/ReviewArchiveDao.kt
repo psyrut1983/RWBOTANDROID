@@ -17,6 +17,17 @@ interface ReviewArchiveDao {
     @Query("SELECT * FROM review_archive WHERE embedding IS NOT NULL")
     suspend fun getAllWithEmbeddings(): List<ReviewArchiveEntity>
 
+    /** Последние записи архива по рейтингу (для отзывов без текста). */
+    @Query(
+        """
+        SELECT * FROM review_archive
+        WHERE rating = :rating AND responseText IS NOT NULL AND responseText != ''
+        ORDER BY createdAt DESC
+        LIMIT :limit
+        """
+    )
+    suspend fun getRecentByRating(rating: Int, limit: Int): List<ReviewArchiveEntity>
+
     @Query("SELECT * FROM review_archive WHERE id = :id")
     suspend fun getById(id: String): ReviewArchiveEntity?
 

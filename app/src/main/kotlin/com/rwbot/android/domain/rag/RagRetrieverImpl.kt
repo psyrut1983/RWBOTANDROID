@@ -37,21 +37,37 @@ class RagRetrieverImpl @Inject constructor(
             .map { it.first }
     }
 
-    override suspend fun addToArchive(reviewId: String, reviewText: String, responseText: String?) {
-        if (reviewText.isBlank()) return
-        when (val r = yandexRepository.embed(reviewText)) {
-            is Result.Success -> {
-                val entity = ReviewArchiveEntity(
-                    id = reviewId,
-                    reviewText = reviewText,
-                    responseText = responseText,
-                    embedding = r.data,
-                    createdAt = System.currentTimeMillis()
-                )
-                reviewArchiveDao.insert(entity)
-            }
-            is Result.Error -> { /* не добавляем без эмбеддинга; можно залогировать */ }
+    override suspend fun findByRating(rating: Int, limit: Int): List<RagContextItem> {
+        if (rating <= 0 || limit <= 0) return emptyList()
+        return reviewArchiveDao.getRecentByRating(rating, limit).map {
+            RagContextItem(it.reviewText, it.responseText)
         }
+    }
+
+    override suspend fun addToArchive(reviewId: String, reviewText: String, rating: Int, responseText: String?) {
+        // Даже если текст отзыва пустой, мы всё равно можем сохранить ответ + рейтинг,
+        // чтобы потом подбирать примеры для "безтекстовых" отзывов.
+        val safeReviewText = reviewText.ifBlank { "Отзыв без текста (оценка $rating)" }
+
+        // Эмбеддинг имеет смысл только если есть нормальный текст.
+        val embedding = if (reviewText.isBlank()) {
+            null
+        } else {
+            when (val r = yandexRepository.embed(reviewText)) {
+                is Result.Success -> r.data
+                is Result.Error -> null
+            }
+        }
+
+        val entity = ReviewArchiveEntity(
+            id = reviewId,
+            reviewText = safeReviewText,
+            rating = rating,
+            responseText = responseText,
+            embedding = embedding,
+            createdAt = System.currentTimeMillis()
+        )
+        reviewArchiveDao.insert(entity)
     }
 
     /**

@@ -16,7 +16,6 @@ import javax.inject.Singleton
 
 /** Результат обработки одного отзыва пайплайном. */
 sealed class PipelineResult {
-    data class AutoSent(val review: ReviewEntity) : PipelineResult()
     data class OnModeration(val review: ReviewEntity) : PipelineResult()
     data class Error(val message: String) : PipelineResult()
 }
@@ -52,9 +51,25 @@ class ReviewPipeline @Inject constructor(
             rating = review.rating,
             blacklistWords = secureSettings.blacklistWords
         )
-        // RAG: поиск похожих отзывов для контекста (при пустом архиве вернётся emptyList)
-        val ragContext = ragRetriever.findSimilar(review.text, RAG_LIMIT)
-        val generateResult = yandexRepository.generateResponse(review.text, ragContext = ragContext)
+        // RAG: если текста нет, подбираем примеры ответов по рейтингу.
+        // Иначе — обычный поиск похожих по эмбеддингам.
+        val hasText = review.text.isNotBlank()
+        val ragContext = if (hasText) {
+            ragRetriever.findSimilar(review.text, RAG_LIMIT)
+        } else {
+            ragRetriever.findByRating(review.rating, RAG_LIMIT)
+        }
+
+        // Если текста нет, формируем "псевдо-отзыв" для генерации: он зависит от оценки.
+        // Это важно, чтобы модель понимала, какой тон выбрать (позитив/нейтрал/негатив).
+        val promptReviewText = if (hasText) {
+            review.text
+        } else {
+            "Отзыв без текста. Оценка: ${review.rating}/5. " +
+                "Сформируй короткий вежливый ответ покупателю, тон и содержание зависят от оценки."
+        }
+
+        val generateResult = yandexRepository.generateResponse(promptReviewText, ragContext = ragContext)
         val responseText = when (generateResult) {
             is Result.Success -> generateResult.data
             is Result.Error -> return PipelineResult.Error(generateResult.message)
@@ -68,26 +83,18 @@ class ReviewPipeline @Inject constructor(
         )
         val updated = review.copy(
             generatedResponse = responseText,
-            status = if (decision == Decision.AUTO_SEND) ReviewStatus.ANSWERED else ReviewStatus.ON_MODERATION,
+            // ВАЖНО: по требованиям UX мы всегда просим подтверждение пользователя.
+            // Поэтому даже если DecisionEngine решил AUTO_SEND — мы не отправляем автоматически,
+            // а переводим в ON_MODERATION и показываем текст на одобрение/редактирование.
+            status = ReviewStatus.ON_MODERATION,
             updatedAt = System.currentTimeMillis()
         )
-        return when (decision) {
-            Decision.AUTO_SEND -> {
-                val sendResult = reviewRepository.sendAnswerToWildberries(review.id, responseText)
-                when (sendResult) {
-                    is Result.Success -> {
-                        reviewRepository.updateReview(updated.copy(status = ReviewStatus.ANSWERED))
-                        ragRetriever.addToArchive(review.id, review.text, responseText)
-                        PipelineResult.AutoSent(updated)
-                    }
-                    is Result.Error -> PipelineResult.Error(sendResult.message)
-                }
-            }
-            Decision.MODERATE -> {
-                reviewRepository.updateReview(updated)
-                // В архив RAG добавляем только отправленные ответы (при одобрении в ReviewDetailViewModel)
-                PipelineResult.OnModeration(updated)
-            }
-        }
+        // decision сейчас используется только для аналитики/отладки. Отправка — только вручную из UI.
+        @Suppress("UNUSED_VARIABLE")
+        val _decisionForDebug = decision
+
+        reviewRepository.updateReview(updated)
+        // В архив RAG добавляем только отправленные ответы (при одобрении в ReviewDetailViewModel)
+        return PipelineResult.OnModeration(updated)
     }
 }

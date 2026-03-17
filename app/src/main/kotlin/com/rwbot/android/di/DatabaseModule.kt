@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.rwbot.android.data.local.AppDatabase
 import com.rwbot.android.data.local.MIGRATION_1_2
 import com.rwbot.android.data.local.MIGRATION_2_3
+import com.rwbot.android.data.local.MIGRATION_3_4
 import com.rwbot.android.data.local.dao.ReviewArchiveDao
 import com.rwbot.android.data.local.dao.ReviewDao
 import dagger.Module
@@ -25,7 +26,7 @@ object DatabaseModule {
             context,
             AppDatabase::class.java,
             "rwbot.db"
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
     }
 
     @Provides
