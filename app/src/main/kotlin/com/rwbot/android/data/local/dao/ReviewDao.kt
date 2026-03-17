@@ -36,6 +36,10 @@ interface ReviewDao {
     @Query("SELECT COUNT(*) FROM reviews WHERE status = :status AND updatedAt >= :since")
     suspend fun countByStatusSince(status: ReviewStatus, since: Long): Int
 
+    /** Количество неотвеченных отзывов (NEW + ON_MODERATION) — для бейджа на иконке. */
+    @Query("SELECT COUNT(*) FROM reviews WHERE status IN ('NEW','ON_MODERATION')")
+    fun getUnansweredCountFlow(): Flow<Int>
+
     /** Список id отзывов со статусом NEW или ON_MODERATION (для синхронизации с WB). */
     @Query("SELECT id FROM reviews WHERE status IN ('NEW','ON_MODERATION')")
     suspend fun getIdsNewOrOnModeration(): List<String>

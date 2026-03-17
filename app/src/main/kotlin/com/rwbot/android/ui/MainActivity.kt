@@ -1,9 +1,13 @@
 package com.rwbot.android.ui
 
+import android.Manifest
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -34,9 +38,11 @@ import com.rwbot.android.ui.settings.SettingsViewModel
 import com.rwbot.android.ui.stats.StatsScreen
 import com.rwbot.android.ui.stats.StatsViewModel
 import com.rwbot.android.ui.theme.RWBOTAndroidTheme
+import com.rwbot.android.util.BadgeHelper
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.core.content.ContextCompat
 import com.rwbot.android.ui.moderation.ModerationScreen
 
 @AndroidEntryPoint
@@ -57,8 +63,26 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainNav() {
     val navController = rememberNavController()
-    val activity = LocalContext.current as ComponentActivity
+    val context = LocalContext.current
+    val activity = context as ComponentActivity
     val reviewsViewModel: ReviewsViewModel = viewModel(activity)
+
+    // Запрос разрешения на уведомления (Android 13+) для бейджа на иконке
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+    // Обновление бейджа при изменении количества неотвеченных отзывов
+    LaunchedEffect(Unit) {
+        reviewsViewModel.unansweredCountFlow.collect { count ->
+            BadgeHelper.updateBadge(context, count)
+        }
+    }
+
     val backStack by navController.currentBackStackEntryAsState()
     val currentDestination = backStack?.destination
     Scaffold(

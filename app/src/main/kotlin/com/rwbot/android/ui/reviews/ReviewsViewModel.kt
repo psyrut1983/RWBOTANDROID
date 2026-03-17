@@ -7,9 +7,9 @@ import com.rwbot.android.data.local.entity.ReviewStatus
 import com.rwbot.android.data.repository.ReviewRepository
 import com.rwbot.android.data.repository.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
@@ -64,4 +64,7 @@ class ReviewsViewModel @Inject constructor(
     }
 
     fun clearMessage() { _syncMessage.value = null }
+
+    /** Поток количества неотвеченных отзывов (NEW + ON_MODERATION) для бейджа на иконке. */
+    val unansweredCountFlow: Flow<Int> = reviewRepository.getUnansweredCountFlow()
 }

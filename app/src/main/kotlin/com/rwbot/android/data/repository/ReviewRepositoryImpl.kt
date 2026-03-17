@@ -116,6 +116,8 @@ class ReviewRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getModerationCount(): Int = reviewDao.countByStatus(ReviewStatus.ON_MODERATION)
+
+    override fun getUnansweredCountFlow(): Flow<Int> = reviewDao.getUnansweredCountFlow()
 }
 
 private suspend fun WbFeedbackDto.toEntity(getExisting: suspend (String) -> ReviewEntity?): ReviewEntity? {

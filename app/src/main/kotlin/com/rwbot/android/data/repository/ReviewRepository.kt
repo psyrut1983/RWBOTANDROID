@@ -14,4 +14,6 @@ interface ReviewRepository {
     suspend fun sendAnswerToWildberries(feedbackId: String, text: String): Result<Unit>
     suspend fun updateReview(review: ReviewEntity)
     suspend fun getModerationCount(): Int
+    /** Количество неотвеченных отзывов (NEW + ON_MODERATION). */
+    fun getUnansweredCountFlow(): Flow<Int>
 }
