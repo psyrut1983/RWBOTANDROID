@@ -10,6 +10,7 @@ import com.rwbot.android.domain.classification.ClassificationResult
 import com.rwbot.android.domain.classification.ReviewCategory
 import com.rwbot.android.domain.classification.ReviewClassifier
 import com.rwbot.android.domain.decision.DecisionEngine
+import com.rwbot.android.domain.rag.RagRetriever
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -29,6 +30,7 @@ class ReviewPipelineTest {
     private lateinit var secureSettings: SecureSettings
     private lateinit var classifier: ReviewClassifier
     private lateinit var decisionEngine: DecisionEngine
+    private lateinit var ragRetriever: RagRetriever
     private lateinit var pipeline: ReviewPipeline
 
     private val newReview = ReviewEntity(
@@ -51,6 +53,8 @@ class ReviewPipelineTest {
         secureSettings = mockk(relaxed = true)
         classifier = ReviewClassifier()
         decisionEngine = DecisionEngine()
+        ragRetriever = mockk(relaxed = true)
+        coEvery { ragRetriever.findSimilar(any(), any()) } returns emptyList()
         every { secureSettings.complexityThreshold } returns 4
         every { secureSettings.confidenceThreshold } returns 0.8
         every { secureSettings.minRatingForAutoResponse } returns 3
@@ -60,7 +64,8 @@ class ReviewPipelineTest {
             yandexRepository = yandexRepository,
             secureSettings = secureSettings,
             classifier = classifier,
-            decisionEngine = decisionEngine
+            decisionEngine = decisionEngine,
+            ragRetriever = ragRetriever
         )
     }
 
@@ -85,7 +90,7 @@ class ReviewPipelineTest {
         val highComplexity = ClassificationResult(ReviewCategory.COMPLAINT, 5, false)
         classifier = mockk(relaxed = true)
         every { classifier.classify(any(), any(), any()) } returns highComplexity
-        pipeline = ReviewPipeline(reviewRepository, yandexRepository, secureSettings, classifier, decisionEngine)
+        pipeline = ReviewPipeline(reviewRepository, yandexRepository, secureSettings, classifier, decisionEngine, ragRetriever)
         coEvery { yandexRepository.generateResponse(any()) } returns Result.Success("Спасибо!")
         val result = pipeline.processReview(newReview)
         assert(result is PipelineResult.OnModeration)

@@ -47,19 +47,25 @@ class WildberriesApiTest {
      * Ответ WB для GET /api/v1/feedbacks (минимальный валидный JSON по нашим DTO).
      */
     private val singleFeedbackJson = """
-        [{
-            "id": "test-feedback-123",
-            "text": "Товар хороший, спасибо",
-            "productValuation": 5,
-            "nmId": 12345678,
-            "productDetails": { "nmId": 12345678, "productName": "Товар" },
-            "createdDate": "2025-03-01T12:00:00",
-            "state": "none",
-            "userName": "Покупатель",
-            "pros": null,
-            "cons": null,
-            "answer": null
-        }]
+        {
+          "data": {
+            "feedbacks": [
+              {
+                "id": "test-feedback-123",
+                "text": "Товар хороший, спасибо",
+                "productValuation": 5,
+                "nmId": 12345678,
+                "productDetails": { "nmId": 12345678, "productName": "Товар" },
+                "createdDate": "2025-03-01T12:00:00",
+                "state": "none",
+                "userName": "Покупатель",
+                "pros": null,
+                "cons": null,
+                "answer": null
+              }
+            ]
+          }
+        }
     """.trimIndent()
 
     @Test
@@ -73,34 +79,38 @@ class WildberriesApiTest {
         assertTrue(response.isSuccessful)
         val body = response.body()
         assertNotNull(body)
-        assertEquals(1, body!!.size)
-        assertEquals("test-feedback-123", body[0].id)
-        assertEquals("Товар хороший, спасибо", body[0].text)
-        assertEquals(5, body[0].productValuation)
-        assertEquals(12345678L, body[0].nmId)
-        assertEquals("Покупатель", body[0].userName)
+        val feedbacks = body!!.data?.feedbacks
+        assertNotNull(feedbacks)
+        assertEquals(1, feedbacks!!.size)
+        assertEquals("test-feedback-123", feedbacks[0].id)
+        assertEquals("Товар хороший, спасибо", feedbacks[0].text)
+        assertEquals(5, feedbacks[0].productValuation)
+        assertEquals(12345678L, feedbacks[0].nmId)
+        assertEquals("Покупатель", feedbacks[0].userName)
 
         val request = mockServer.takeRequest()
         assertEquals("GET", request.method)
         assertTrue(request.path!!.startsWith("/api/v1/feedbacks"))
         assertTrue(request.path!!.contains("take=50"))
         assertTrue(request.path!!.contains("skip=0"))
+        assertTrue(request.path!!.contains("isAnswered=false"))
     }
 
     @Test
     fun getFeedbacks_emptyList_parsedCorrectly() = runTest {
         mockServer.enqueue(
             okhttp3.mockwebserver.MockResponse()
-                .setBody("[]")
+                .setBody("""{ "data": { "feedbacks": [] } }""")
                 .setResponseCode(200)
         )
         val response = api.getFeedbacks(take = 10, skip = 100)
         assertTrue(response.isSuccessful)
         assertNotNull(response.body())
-        assertTrue(response.body()!!.isEmpty())
+        assertTrue(response.body()!!.data?.feedbacks?.isEmpty() == true)
         val request = mockServer.takeRequest()
         assertTrue(request.path!!.contains("take=10"))
         assertTrue(request.path!!.contains("skip=100"))
+        assertTrue(request.path!!.contains("isAnswered=false"))
     }
 
     @Test

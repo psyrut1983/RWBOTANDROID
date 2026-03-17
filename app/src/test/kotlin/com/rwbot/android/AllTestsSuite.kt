@@ -7,6 +7,8 @@ import com.rwbot.android.data.repository.YandexRepositoryTest
 import com.rwbot.android.domain.classification.ReviewClassifierTest
 import com.rwbot.android.domain.decision.DecisionEngineTest
 import com.rwbot.android.domain.pipeline.ReviewPipelineTest
+import com.rwbot.android.domain.rag.RagRetrieverImplTest
+import com.rwbot.android.data.local.ConvertersTest
 import com.rwbot.android.ui.reviews.ReviewDetailViewModelTest
 import com.rwbot.android.ui.reviews.ReviewsViewModelTest
 import com.rwbot.android.ui.settings.SettingsViewModelTest
@@ -25,6 +27,9 @@ import org.junit.runners.Suite
     ReviewClassifierTest::class,
     DecisionEngineTest::class,
     ReviewPipelineTest::class,
+    RagRetrieverImplTest::class,
+    // Data — local
+    ConvertersTest::class,
     // Data — API
     WildberriesApiTest::class,
     YandexApiTest::class,

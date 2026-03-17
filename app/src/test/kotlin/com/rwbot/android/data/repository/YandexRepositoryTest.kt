@@ -1,7 +1,9 @@
 package com.rwbot.android.data.repository
 
+import com.rwbot.android.data.local.SecureSettings
 import com.rwbot.android.data.remote.yandex.YandexApi
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -17,12 +19,16 @@ import retrofit2.Response
 class YandexRepositoryTest {
 
     private lateinit var yandexApi: YandexApi
+    private lateinit var secureSettings: SecureSettings
     private lateinit var repo: YandexRepository
 
     @Before
     fun setUp() {
         yandexApi = mockk(relaxed = true)
-        repo = YandexRepository(yandexApi)
+        secureSettings = mockk(relaxed = true)
+        // Важно: в тестах не нужно реальные ключи/Folder ID — достаточно заглушек.
+        every { secureSettings.yandexFolderId } returns "test-folder"
+        repo = YandexRepository(yandexApi, secureSettings)
     }
 
     @Test

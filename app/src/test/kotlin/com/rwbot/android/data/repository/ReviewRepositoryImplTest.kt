@@ -4,6 +4,8 @@ import com.rwbot.android.data.local.dao.ReviewDao
 import com.rwbot.android.data.local.entity.ReviewEntity
 import com.rwbot.android.data.local.entity.ReviewStatus
 import com.rwbot.android.data.remote.wb.WildberriesApi
+import com.rwbot.android.data.remote.wb.WbFeedbacksDataDto
+import com.rwbot.android.data.remote.wb.WbFeedbacksResponseDto
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -55,7 +57,8 @@ class ReviewRepositoryImplTest {
                 answer = null
             )
         )
-        coEvery { wbApi.getFeedbacks(50, 0) } returns Response.success(dtoList)
+        val responseDto = WbFeedbacksResponseDto(data = WbFeedbacksDataDto(feedbacks = dtoList))
+        coEvery { wbApi.getFeedbacks(50, 0) } returns Response.success(responseDto)
         coEvery { reviewDao.getById("fb1") } returns null
         val slot = slot<List<ReviewEntity>>()
         coEvery { reviewDao.insertAll(capture(slot)) } just Runs

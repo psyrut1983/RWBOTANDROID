@@ -15,6 +15,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
@@ -25,6 +26,7 @@ import com.rwbot.android.util.MainCoroutineRule
 /**
  * Тесты ReviewDetailViewModel: загрузка отзыва, обработка, одобрение, отклонение.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class ReviewDetailViewModelTest {
 
     @get:Rule
@@ -33,6 +35,7 @@ class ReviewDetailViewModelTest {
     private lateinit var savedStateHandle: SavedStateHandle
     private lateinit var reviewRepository: ReviewRepository
     private lateinit var reviewPipeline: ReviewPipeline
+    private val ragRetriever = mockk<com.rwbot.android.domain.rag.RagRetriever>(relaxed = true)
     private lateinit var viewModel: ReviewDetailViewModel
 
     private val reviewNew = ReviewEntity(
@@ -51,7 +54,7 @@ class ReviewDetailViewModelTest {
     @Test
     fun load_setsReviewInState() = runTest {
         coEvery { reviewRepository.getReviewById("r1") } returns reviewNew
-        viewModel = ReviewDetailViewModel(savedStateHandle, reviewRepository, reviewPipeline)
+        viewModel = ReviewDetailViewModel(savedStateHandle, reviewRepository, reviewPipeline, ragRetriever)
         advanceUntilIdle()
         assertEquals("r1", viewModel.state.value.review?.id)
         assertEquals(ReviewStatus.NEW, viewModel.state.value.review?.status)
@@ -61,7 +64,7 @@ class ReviewDetailViewModelTest {
     fun process_successOnModeration_updatesState() = runTest {
         coEvery { reviewRepository.getReviewById("r1") } returns reviewNew
         coEvery { reviewPipeline.processReview(reviewNew) } returns PipelineResult.OnModeration(reviewOnMod)
-        viewModel = ReviewDetailViewModel(savedStateHandle, reviewRepository, reviewPipeline)
+        viewModel = ReviewDetailViewModel(savedStateHandle, reviewRepository, reviewPipeline, ragRetriever)
         advanceUntilIdle()
         viewModel.process()
         advanceUntilIdle()
@@ -74,7 +77,7 @@ class ReviewDetailViewModelTest {
         coEvery { reviewRepository.getReviewById("r1") } returns reviewOnMod
         coEvery { reviewRepository.sendAnswerToWildberries("r1", "Ответ") } returns Result.Success(Unit)
         coEvery { reviewRepository.updateReview(any()) } just Runs
-        viewModel = ReviewDetailViewModel(savedStateHandle, reviewRepository, reviewPipeline)
+        viewModel = ReviewDetailViewModel(savedStateHandle, reviewRepository, reviewPipeline, ragRetriever)
         advanceUntilIdle()
         viewModel.approve()
         advanceUntilIdle()
@@ -86,7 +89,7 @@ class ReviewDetailViewModelTest {
     fun reject_updatesReviewToRejected() = runTest {
         coEvery { reviewRepository.getReviewById("r1") } returns reviewOnMod
         coEvery { reviewRepository.updateReview(any()) } just Runs
-        viewModel = ReviewDetailViewModel(savedStateHandle, reviewRepository, reviewPipeline)
+        viewModel = ReviewDetailViewModel(savedStateHandle, reviewRepository, reviewPipeline, ragRetriever)
         advanceUntilIdle()
         viewModel.reject()
         advanceUntilIdle()

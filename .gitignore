@@ -5,6 +5,7 @@
 /.idea/
 .DS_Store
 /build
+/app/build/
 /captures
 .externalNativeBuild
 .cxx
@@ -40,3 +41,6 @@ secrets.properties
 .idea/workspace.xml
 .idea/tasks.xml
 .idea/nav.xml
+
+# JVM/Android профайлы памяти (не коммитить)
+*.hprof
