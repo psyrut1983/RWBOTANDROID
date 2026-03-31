@@ -8,42 +8,40 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.platform.LocalContext
-import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.core.content.ContextCompat
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import com.rwbot.android.ui.nav.NavRoutes
-import com.rwbot.android.ui.reviews.ReviewDetailScreen
-import com.rwbot.android.ui.reviews.ReviewDetailViewModel
 import com.rwbot.android.ui.reviews.ReviewsScreen
 import com.rwbot.android.ui.reviews.ReviewsViewModel
 import com.rwbot.android.ui.settings.SettingsScreen
 import com.rwbot.android.ui.settings.SettingsViewModel
-import com.rwbot.android.ui.stats.StatsScreen
-import com.rwbot.android.ui.stats.StatsViewModel
 import com.rwbot.android.ui.theme.RWBOTAndroidTheme
 import com.rwbot.android.util.BadgeHelper
 import dagger.hilt.android.AndroidEntryPoint
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.core.content.ContextCompat
-import com.rwbot.android.ui.moderation.ModerationScreen
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -60,6 +58,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainNav() {
     val navController = rememberNavController()
@@ -67,7 +66,7 @@ fun MainNav() {
     val activity = context as ComponentActivity
     val reviewsViewModel: ReviewsViewModel = viewModel(activity)
 
-    // Запрос разрешения на уведомления (Android 13+) для бейджа на иконке
+    // Запрашиваем разрешение на уведомления, чтобы бейдж на иконке работал на Android 13+.
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     LaunchedEffect(Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -76,7 +75,8 @@ fun MainNav() {
             }
         }
     }
-    // Обновление бейджа при изменении количества неотвеченных отзывов
+
+    // Бейдж показывает количество отзывов, которые еще требуют действия пользователя.
     LaunchedEffect(Unit) {
         reviewsViewModel.unansweredCountFlow.collect { count ->
             BadgeHelper.updateBadge(context, count)
@@ -84,65 +84,64 @@ fun MainNav() {
     }
 
     val backStack by navController.currentBackStackEntryAsState()
-    val currentDestination = backStack?.destination
+    val currentRoute = backStack?.destination?.route
+
     Scaffold(
-        bottomBar = {
-            NavigationBar {
-                listOf(
-                    NavRoutes.REVIEWS to "Отзывы",
-                    NavRoutes.MODERATION to "Модерация",
-                    NavRoutes.STATS to "Статистика",
-                    NavRoutes.SETTINGS to "Настройки"
-                ).forEach { (route, label) ->
-                    NavigationBarItem(
-                        selected = currentDestination?.hierarchy?.any { it.route == route } == true,
-                        onClick = {
-                            navController.navigate(route) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = {},
-                        label = { Text(label) }
-                    )
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(if (currentRoute == NavRoutes.SETTINGS) "Настройки" else "Отзывы")
+                },
+                navigationIcon = {
+                    if (currentRoute == NavRoutes.SETTINGS) {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = "Назад"
+                            )
+                        }
+                    }
+                },
+                actions = {
+                    if (currentRoute != NavRoutes.SETTINGS) {
+                        IconButton(onClick = { navController.navigate(NavRoutes.SETTINGS) }) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Открыть настройки"
+                            )
+                        }
+                    }
                 }
-            }
+            )
         }
     ) { padding ->
-        NavHost(
+        MainNavHost(
             navController = navController,
-            startDestination = NavRoutes.REVIEWS,
-            modifier = Modifier.fillMaxSize().padding(padding)
-        ) {
-            composable(NavRoutes.REVIEWS) {
-                LaunchedEffect(Unit) { reviewsViewModel.setFilter(null) }
-                ReviewsScreen(
-                    viewModel = reviewsViewModel,
-                    onReviewClick = { navController.navigate(NavRoutes.reviewDetail(it)) }
-                )
-            }
-            composable(NavRoutes.MODERATION) {
-                ModerationScreen(
-                    viewModel = reviewsViewModel,
-                    onReviewClick = { navController.navigate(NavRoutes.reviewDetail(it)) }
-                )
-            }
-            composable(NavRoutes.STATS) {
-                val vm: StatsViewModel = hiltViewModel()
-                StatsScreen(viewModel = vm)
-            }
-            composable(NavRoutes.SETTINGS) {
-                val vm: SettingsViewModel = hiltViewModel()
-                SettingsScreen(viewModel = vm)
-            }
-            composable(
-                NavRoutes.REVIEW_DETAIL,
-                arguments = listOf(navArgument("reviewId") { type = androidx.navigation.NavType.StringType })
-            ) {
-                val vm: ReviewDetailViewModel = hiltViewModel()
-                ReviewDetailScreen(viewModel = vm)
-            }
+            padding = padding,
+            reviewsViewModel = reviewsViewModel
+        )
+    }
+}
+
+@Composable
+private fun MainNavHost(
+    navController: NavHostController,
+    padding: PaddingValues,
+    reviewsViewModel: ReviewsViewModel
+) {
+    NavHost(
+        navController = navController,
+        startDestination = NavRoutes.REVIEWS,
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(padding)
+    ) {
+        composable(NavRoutes.REVIEWS) {
+            ReviewsScreen(viewModel = reviewsViewModel)
+        }
+        composable(NavRoutes.SETTINGS) {
+            val vm: SettingsViewModel = hiltViewModel()
+            SettingsScreen(viewModel = vm)
         }
     }
 }

@@ -18,6 +18,6 @@ fun ModerationScreen(
     LaunchedEffect(Unit) { viewModel.setFilter(ReviewStatus.ON_MODERATION) }
     Column(Modifier.fillMaxSize()) {
         Text("Очередь модерации")
-        ReviewsScreen(viewModel = viewModel, onReviewClick = onReviewClick)
+        ReviewsScreen(viewModel = viewModel)
     }
 }
