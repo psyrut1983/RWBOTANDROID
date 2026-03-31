@@ -68,18 +68,32 @@ class ReviewDetailViewModelTest {
         advanceUntilIdle()
         viewModel.process()
         advanceUntilIdle()
-        assertEquals("Отзыв на модерации", viewModel.state.value.message)
+        assertEquals("Проверьте и отредактируйте ответ перед отправкой", viewModel.state.value.message)
         assertEquals(ReviewStatus.ON_MODERATION, viewModel.state.value.review?.status)
     }
 
     @Test
-    fun approve_success_updatesState() = runTest {
+    fun approve_opensApprovalDialog() = runTest {
+        coEvery { reviewRepository.getReviewById("r1") } returns reviewOnMod
+        viewModel = ReviewDetailViewModel(savedStateHandle, reviewRepository, reviewPipeline, ragRetriever)
+        advanceUntilIdle()
+        viewModel.approve()
+        advanceUntilIdle()
+        assertEquals(true, viewModel.state.value.isApprovalDialogVisible)
+        assertEquals("Ответ", viewModel.state.value.draftResponseText)
+        assertEquals(null, viewModel.state.value.message)
+    }
+
+    @Test
+    fun sendApprovedAnswer_success_updatesState() = runTest {
         coEvery { reviewRepository.getReviewById("r1") } returns reviewOnMod
         coEvery { reviewRepository.sendAnswerToWildberries("r1", "Ответ") } returns Result.Success(Unit)
         coEvery { reviewRepository.updateReview(any()) } just Runs
         viewModel = ReviewDetailViewModel(savedStateHandle, reviewRepository, reviewPipeline, ragRetriever)
         advanceUntilIdle()
         viewModel.approve()
+        advanceUntilIdle()
+        viewModel.sendApprovedAnswer()
         advanceUntilIdle()
         assertEquals("Отправлено", viewModel.state.value.message)
         assertEquals(ReviewStatus.ANSWERED, viewModel.state.value.review?.status)

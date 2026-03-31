@@ -150,6 +150,7 @@ class ReviewsViewModelTest {
     fun rejectSelectedReview_marksReviewRejectedAndClosesDetails() = runTest(testDispatcher) {
         backgroundScope.launch { viewModel.state.collect { } }
         viewModel.selectReview(moderationReview.id)
+        advanceUntilIdle()
         coEvery { reviewRepository.updateReview(any()) } just Runs
 
         viewModel.rejectSelectedReview()
