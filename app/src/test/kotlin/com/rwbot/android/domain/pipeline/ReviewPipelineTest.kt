@@ -98,21 +98,19 @@ class ReviewPipelineTest {
     }
 
     @Test
-    fun decisionAutoSend_sendsToWbAndUpdatesReview() = runTest {
+    fun decisionAutoSend_nowMovesToModerationAndDoesNotSendAutomatically() = runTest {
         coEvery { yandexRepository.generateResponse(any()) } returns Result.Success("Спасибо!")
-        coEvery { reviewRepository.sendAnswerToWildberries(any(), any()) } returns Result.Success(Unit)
         val result = pipeline.processReview(newReview)
-        assert(result is PipelineResult.AutoSent)
-        coVerify { reviewRepository.sendAnswerToWildberries("r1", "Спасибо!") }
+        assert(result is PipelineResult.OnModeration)
+        coVerify(exactly = 0) { reviewRepository.sendAnswerToWildberries(any(), any()) }
         coVerify { reviewRepository.updateReview(any()) }
     }
 
     @Test
-    fun decisionAutoSend_butWbFails_returnsError() = runTest {
+    fun wbSendFailure_isNotPossibleInsidePipelineBecauseSendingIsManual() = runTest {
         coEvery { yandexRepository.generateResponse(any()) } returns Result.Success("Спасибо!")
-        coEvery { reviewRepository.sendAnswerToWildberries(any(), any()) } returns Result.Error("401")
         val result = pipeline.processReview(newReview)
-        assert(result is PipelineResult.Error)
-        assertEquals("401", (result as PipelineResult.Error).message)
+        assert(result is PipelineResult.OnModeration)
+        coVerify(exactly = 0) { reviewRepository.sendAnswerToWildberries(any(), any()) }
     }
 }
